@@ -144,3 +144,113 @@ analisis_pca_completo <- function(datos, escala = TRUE, n_comp = NULL, graficar 
     contribucion_relativa = contrib_relativa
   ))
 }
+
+
+#' analisi exploratorio sobre el data set
+#'
+#' @param datos base de datos para el proceso
+#' @import ggplot2
+#' @import dplyr
+#' @export
+
+eda_analysis <- function(datos) {
+  cat("\nResumen de la estructura del dataset:\n")
+  print(str(datos))
+
+  cat("\nResumen estadístico de las variables numéricas:\n")
+  print(summary(select_if(datos, is.numeric)))
+
+  cat("\nValores faltantes por variable:\n")
+  print(colSums(is.na(datos)))
+
+  cat("\nDistribución de las variables numéricas:\n")
+  numeric_vars <- select_if(datos, is.numeric)
+
+  if (ncol(numeric_vars) > 0) {
+    par(mfrow = c(ceil(ncol(numeric_vars) / 2), 2))
+    for (var in names(numeric_vars)) {
+      hist(numeric_vars[[var]], main = paste("Histograma de", var), xlab = var, col = "lightblue", border = "black")
+    }
+    par(mfrow = c(1, 1))
+  }
+
+  cat("\nDistribución de variables categóricas:\n")
+  categorical_vars <- select_if(data, is.factor)
+
+  if (ncol(categorical_vars) > 0) {
+    for (var in names(categorical_vars)) {
+      print(ggplot(data, aes_string(var)) + geom_bar(fill = "lightblue") + theme_minimal() + ggtitle(paste("Distribución de", var)))
+    }
+  }
+}
+
+
+#' muestra histogramas de frecuencia sobre cada variable del data set
+#'
+#' @param data base de datos la cual es necesaria para el proceso
+#' @import ggplot2
+#' @export
+
+generar_histogramas <- function(data) {
+  data_numerica <- data[sapply(data, is.numeric)]
+
+  plots <- lapply(names(data_numerica), function(var) {
+    ggplot(data, aes_string(x = var)) +
+      geom_histogram(binwidth = 30, fill = "blue", alpha = 0.7, color = "black") +
+      theme_minimal() +
+      labs(title = paste("Histograma de", var), x = var, y = "Frecuencia")
+  })
+
+  return(plots)
+}
+
+
+#' genera la matriz de correlaciones entre las variables numericas
+#'
+#' @param data base de datos la cual se quiere estudiar
+#' @import corrplot
+#' @export
+
+matriz_correlacion <- function(data) {
+  data_num <- data[sapply(data, is.numeric)]
+
+  normalidad <- sapply(data_num, function(x) {
+    if (length(x) > 3 && length(x) <= 5000) {
+      return(shapiro.test(x)$p.value > 0.05)
+    } else {
+      return(FALSE)
+    }
+  })
+
+
+  metodo <- if (all(normalidad)) {
+    "pearson"
+  } else if (sum(duplicated(data_num)) > 0) {
+    "kendall"
+  } else {
+    "spearman"
+  }
+
+  cor_matrix <- cor(data_num, method = metodo)
+
+  print(paste("Usando el método de correlación:", metodo))
+  corrplot(cor_matrix, method = "color", addCoef.col = "black")
+}
+
+#' Análisis exploratorio completo del dataset
+#'
+#' @param data Base de datos a analizar
+#' @export
+
+total_eda <- function(data) {
+  cat("\n--- Análisis Exploratorio ---\n")
+
+  eda_analysis(data)
+
+  plots <- generar_histogramas(data)
+  print(plots)
+
+  matriz_correlacion(data)
+}
+
+
